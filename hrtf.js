@@ -1,10 +1,10 @@
 var hrtfContainer = {
 
-	loadHrir: function (file, onLoad) {
+	loadHrir: function(file, onLoad) {
 		var oReq = new XMLHttpRequest();
 		oReq.open("GET", file, true);
 		oReq.responseType = "arraybuffer";
-		oReq.onload = function (oEvent) {
+		oReq.onload = function(oEvent) {
 			var arrayBuffer = oReq.response;
 			if (arrayBuffer) {
 				var rawData = new Float32Array(arrayBuffer);
@@ -60,7 +60,7 @@ var hrtfContainer = {
 		oReq.send(null);
 	},
 
-	interpolateHRIR: function (azm, elv) {
+	interpolateHRIR: function(azm, elv) {
 		if (typeof hrtfContainer.triangulation !== "undefined" &&
 			typeof hrtfContainer.hrir !== "undefined") {
 
@@ -103,11 +103,11 @@ var hrtfContainer = {
 
 /*
 	audioContext - an instance of the Web Audio API AudioContext
-	audioSourceNode - an instance of AudioBufferSourceNode or MediaElementAudioSourceNode.
+	sourceNode - any instance of the AudioNode
 	Note that for this panner to work properly the source must be MONO.
 */
-function HRTFPanner(audioContext, audioSourceNode) {
-	
+function HRTFPanner(audioContext, sourceNode) {
+
 	function HRTFConvolver() {
 		this.buffer = audioContext.createBuffer(2, 200, audioContext.sampleRate);
 		this.convolver = audioContext.createConvolver();
@@ -117,7 +117,7 @@ function HRTFPanner(audioContext, audioSourceNode) {
 
 		this.convolver.connect(this.gainNode);
 
-		this.setBuffer = function (hrirLR) {
+		this.setBuffer = function(hrirLR) {
 			var bufferL = this.buffer.getChannelData(0);
 			var bufferR = this.buffer.getChannelData(1);
 			for (var i = 0; i < this.buffer.length; ++i) {
@@ -138,7 +138,7 @@ function HRTFPanner(audioContext, audioSourceNode) {
 	hiPass.type = "highpass";
 	hiPass.frequency.value = 200;
 
-	var source = audioSourceNode;
+	var source = sourceNode;
 	source.channelCount = 1;
 	source.connect(loPass);
 	source.connect(hiPass);
@@ -148,7 +148,7 @@ function HRTFPanner(audioContext, audioSourceNode) {
 
 	/* 
 		Connects this panner to the destination node.
-	*/ 
+	*/
 	this.connect = function(destination) {
 		loPass.connect(destination);
 		convolver1.gainNode.connect(destination);
@@ -165,7 +165,7 @@ function HRTFPanner(audioContext, audioSourceNode) {
 		newSource.connect(hiPass);
 		source = newSource;
 	}
-	
+
 	/*
 		Sets a cut-off frequency below which input signal won't be spatialized.
 	*/
@@ -174,7 +174,6 @@ function HRTFPanner(audioContext, audioSourceNode) {
 		hiPass.frequency.value = freq;
 	}
 
-	/*
 
 	/*
 		Updates the current Head Related Impulse Response.
@@ -250,7 +249,7 @@ function rad2deg(rad) {
 
 var Delaunay;
 
-(function () {
+(function() {
 	"use strict";
 
 	var EPSILON = 1.0 / 1048576.0;
@@ -352,7 +351,7 @@ var Delaunay;
 	}
 
 	Delaunay = {
-		triangulate: function (vertices, key) {
+		triangulate: function(vertices, key) {
 			var n = vertices.length,
 				i, j, indices, st, open, closed, edges, dx, dy, a, b, c;
 
@@ -376,7 +375,7 @@ var Delaunay;
 			for (i = n; i--;)
 				indices[i] = i;
 
-			indices.sort(function (i, j) {
+			indices.sort(function(i, j) {
 				return vertices[j][0] - vertices[i][0];
 			});
 
@@ -450,7 +449,7 @@ var Delaunay;
 			/* Yay, we're done! */
 			return open;
 		},
-		contains: function (tri, p) {
+		contains: function(tri, p) {
 			/* Bounding box test first, for quick rejections. */
 			if ((p[0] < tri[0][0] && p[0] < tri[1][0] && p[0] < tri[2][0]) ||
 			   (p[0] > tri[0][0] && p[0] > tri[1][0] && p[0] > tri[2][0]) ||
