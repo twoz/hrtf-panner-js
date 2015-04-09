@@ -1,6 +1,12 @@
-var hrtfContainer = {
+function HRTFContainer() {
 
-	loadHrir: function(file, onLoad) {
+	var hrir =  {};
+	var triangulation = {
+		points: [],
+		triangles: []
+	};
+
+	this.loadHrir = function(file, onLoad) {
 		var oReq = new XMLHttpRequest();
 		oReq.open("GET", file, true);
 		oReq.responseType = "arraybuffer";
@@ -8,48 +14,48 @@ var hrtfContainer = {
 			var arrayBuffer = oReq.response;
 			if (arrayBuffer) {
 				var rawData = new Float32Array(arrayBuffer);
-				var hrir = {};
-				hrir.L = {};
-				hrir.R = {};
-				var azimuths = [-90, -80, -65, -55, -45, -40, -35, -30, -25, -20, -15, -10, -5, 0,
-                    5, 10, 15, 20, 25, 30, 35, 40, 45, 55, 65, 80, 90];
+				var ir = {};
+				ir.L = {};
+				ir.R = {};
+				var azimuths = [-90, -80, -65, -55, -45, -40, -35, -30, -25, -20,
+					-15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 55, 65, 80, 90];
 				var points = [];
 
 				var hrirLength = 200;
 				var k = 0;
 				for (var i = 0; i < azimuths.length; ++i) {
 					azi = azimuths[i];
-					hrir['L'][azi] = {};
-					hrir['R'][azi] = {};
+					ir['L'][azi] = {};
+					ir['R'][azi] = {};
 
 					// -90 deg elevation
-					hrir['L'][azi][-90] = rawData.subarray(k, k + hrirLength);
+					ir['L'][azi][-90] = rawData.subarray(k, k + hrirLength);
 					k += hrirLength;
-					hrir['R'][azi][-90] = rawData.subarray(k, k + hrirLength);
+					ir['R'][azi][-90] = rawData.subarray(k, k + hrirLength);
 					k += hrirLength;
 
 					points.push([azi, -90]);
 					// 50 elevations: -45 + 5.625 * (0:49)
 					for (var j = 0; j < 50; ++j) {
 						var elv = -45 + 5.625 * j;
-						hrir['L'][azi][elv] = rawData.subarray(k, k + hrirLength);
+						ir['L'][azi][elv] = rawData.subarray(k, k + hrirLength);
 						k += hrirLength;
-						hrir['R'][azi][elv] = rawData.subarray(k, k + hrirLength);
+						ir['R'][azi][elv] = rawData.subarray(k, k + hrirLength);
 						k += hrirLength;
 						points.push([azi, elv]);
 					}
 
 					// 270 deg elevation
-					hrir['L'][azi][270] = rawData.subarray(k, k + hrirLength);
+					ir['L'][azi][270] = rawData.subarray(k, k + hrirLength);
 					k += hrirLength;
-					hrir['R'][azi][270] = rawData.subarray(k, k + hrirLength);
+					ir['R'][azi][270] = rawData.subarray(k, k + hrirLength);
 					k += hrirLength;
 					points.push([azi, 270]);
 				}
-				hrtfContainer.hrir = hrir;
-				hrtfContainer.triangulation = {};
-				hrtfContainer.triangulation.triangles = Delaunay.triangulate(points);
-				hrtfContainer.triangulation.points = points;
+
+				hrir = ir;
+				triangulation.triangles = Delaunay.triangulate(points);
+				triangulation.points = points;
 				if (typeof onLoad !== "undefined")
 					onLoad();
 			}
@@ -58,55 +64,55 @@ var hrtfContainer = {
 			}
 		};
 		oReq.send(null);
-	},
+	}
 
-	interpolateHRIR: function(azm, elv) {
-		if (typeof hrtfContainer.triangulation !== "undefined" &&
-			typeof hrtfContainer.hrir !== "undefined") {
-
-			var triangles = hrtfContainer.triangulation.triangles;
-			var points = hrtfContainer.triangulation.points;
-			var i = triangles.length - 1;
-			var A, B, C, X, T, invT, det, g1, g2, g3;
-			while (true) {
-				A = points[triangles[i]]; i--;
-				B = points[triangles[i]]; i--;
-				C = points[triangles[i]]; i--;
-				T = [A[0] - C[0], A[1] - C[1],
-					 B[0] - C[0], B[1] - C[1]];
-				invT = [T[3], -T[1], -T[2], T[0]];
-				det = 1 / (T[0] * T[3] - T[1] * T[2]);
-				for (var j = 0; j < invT.length; ++j)
-					invT[j] *= det;
-				X = [azm - C[0], elv - C[1]];
-				g1 = invT[0] * X[0] + invT[2] * X[1];
-				g2 = invT[1] * X[0] + invT[3] * X[1];
-				g3 = 1 - g1 - g2;
-				if (g1 >= 0 && g2 >= 0 && g3 >= 0) {
-					var hrirL = new Float32Array(200);
-					var hrirR = new Float32Array(200);
-					var hrir = hrtfContainer.hrir;
-					for (var i = 0; i < 200; ++i) {
-						hrirL[i] = g1 * hrir['L'][A[0]][A[1]][i] + g2 * hrir['L'][B[0]][B[1]][i] + g3 * hrir['L'][C[0]][C[1]][i];
-						hrirR[i] = g1 * hrir['R'][A[0]][A[1]][i] + g2 * hrir['R'][B[0]][B[1]][i] + g3 * hrir['R'][C[0]][C[1]][i];
-					}
-					return [hrirL, hrirR];
+	this.interpolateHRIR = function(azm, elv) {
+		var triangles = triangulation.triangles;
+		var points = triangulation.points;
+		var i = triangles.length - 1;
+		var A, B, C, X, T, invT, det, g1, g2, g3;
+		while (true) {
+			A = points[triangles[i]]; i--;
+			B = points[triangles[i]]; i--;
+			C = points[triangles[i]]; i--;
+			T = [A[0] - C[0], A[1] - C[1],
+				 B[0] - C[0], B[1] - C[1]];
+			invT = [T[3], -T[1], -T[2], T[0]];
+			det = 1 / (T[0] * T[3] - T[1] * T[2]);
+			for (var j = 0; j < invT.length; ++j)
+				invT[j] *= det;
+			X = [azm - C[0], elv - C[1]];
+			g1 = invT[0] * X[0] + invT[2] * X[1];
+			g2 = invT[1] * X[0] + invT[3] * X[1];
+			g3 = 1 - g1 - g2;
+			if (g1 >= 0 && g2 >= 0 && g3 >= 0) {
+				var hrirL = new Float32Array(200);
+				var hrirR = new Float32Array(200);
+				for (var i = 0; i < 200; ++i) {
+					hrirL[i] = g1 * hrir['L'][A[0]][A[1]][i] +
+						g2 * hrir['L'][B[0]][B[1]][i] +
+						g3 * hrir['L'][C[0]][C[1]][i];
+					hrirR[i] = g1 * hrir['R'][A[0]][A[1]][i] +
+						g2 * hrir['R'][B[0]][B[1]][i] +
+						g3 * hrir['R'][C[0]][C[1]][i];
 				}
-				else if (i < 0) {
-					break;
-				}
+				return [hrirL, hrirR];
+			}
+			else if (i < 0) {
+				break;
 			}
 		}
 		return [new Float32Array(200), new Float32Array(200)];
 	}
-};
+}
 
 /*
 	audioContext - an instance of the Web Audio API AudioContext
 	sourceNode - any instance of the AudioNode
+	hrtfContainer - an instance of HRTFContainer class this panner will use
 	Note that for this panner to work properly the source must be MONO.
 */
-function HRTFPanner(audioContext, sourceNode) {
+function HRTFPanner(audioContext, sourceNode, hrtfContainer) {
 
 	function HRTFConvolver() {
 		this.buffer = audioContext.createBuffer(2, 200, audioContext.sampleRate);
@@ -117,7 +123,7 @@ function HRTFPanner(audioContext, sourceNode) {
 
 		this.convolver.connect(this.gainNode);
 
-		this.setBuffer = function(hrirLR) {
+		this.fillBuffer = function(hrirLR) {
 			var bufferL = this.buffer.getChannelData(0);
 			var bufferR = this.buffer.getChannelData(1);
 			for (var i = 0; i < this.buffer.length; ++i) {
@@ -128,8 +134,8 @@ function HRTFPanner(audioContext, sourceNode) {
 		}
 	}
 
-	var convolver1 = new HRTFConvolver();
-	var convolver2 = new HRTFConvolver();
+	var currentConvolver = new HRTFConvolver();
+	var targetConvolver = new HRTFConvolver();
 
 	var loPass = audioContext.createBiquadFilter();
 	var hiPass = audioContext.createBiquadFilter();
@@ -142,8 +148,8 @@ function HRTFPanner(audioContext, sourceNode) {
 	source.channelCount = 1;
 	source.connect(loPass);
 	source.connect(hiPass);
-	hiPass.connect(convolver1.convolver);
-	hiPass.connect(convolver2.convolver);
+	hiPass.connect(currentConvolver.convolver);
+	hiPass.connect(targetConvolver.convolver);
 
 
 	/* 
@@ -151,8 +157,8 @@ function HRTFPanner(audioContext, sourceNode) {
 	*/
 	this.connect = function(destination) {
 		loPass.connect(destination);
-		convolver1.gainNode.connect(destination);
-		convolver2.gainNode.connect(destination);
+		currentConvolver.gainNode.connect(destination);
+		targetConvolver.gainNode.connect(destination);
 	}
 
 	/* 
@@ -177,22 +183,24 @@ function HRTFPanner(audioContext, sourceNode) {
 
 	/*
 		Updates the current Head Related Impulse Response.
-		Azimuth and elevation are coordinates in the InterauralPolar coordinate system of the
-		Source RELATIVE to the listener.
+		Azimuth and elevation are coordinates of the source in the Interaural-Polar 
+		coordinate system RELATIVE to the listener.
 		This is supposed to be called each time a listener or source position changes.	
 	*/
 	this.update = function(azimuth, elevation) {
-		convolver2.setBuffer(hrtfContainer.interpolateHRIR(azimuth, elevation));
+		targetConvolver.fillBuffer(hrtfContainer.interpolateHRIR(azimuth, elevation));
 		// start crossfading
 		var crossfadeDuration = 25;
-		convolver2.gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-		convolver2.gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + crossfadeDuration / 1000);
-		convolver1.gainNode.gain.setValueAtTime(1, audioContext.currentTime);
-		convolver1.gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + crossfadeDuration / 1000);
+		targetConvolver.gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+		targetConvolver.gainNode.gain.linearRampToValueAtTime(1,
+			audioContext.currentTime + crossfadeDuration / 1000);
+		currentConvolver.gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+		currentConvolver.gainNode.gain.linearRampToValueAtTime(0,
+			audioContext.currentTime + crossfadeDuration / 1000);
 		// swap convolvers
-		var t = convolver2;
-		convolver2 = convolver1;
-		convolver1 = t;
+		var t = targetConvolver;
+		targetConvolver = currentConvolver;
+		currentConvolver = t;
 	}
 
 }
@@ -203,10 +211,7 @@ function HRTFPanner(audioContext, sourceNode) {
 
 
 
-// ------------------------   HELPER FUNCTIONS  ---------------------------------------
-// Helper functions for tasks like converting between cartesian coordinates
-// and intraural-polar or calculating source coordinates relative to the listener.
-
+// ------------------------   HELPER FUNCTIONS  -------------------------------
 
 
 /* 
@@ -215,7 +220,7 @@ function HRTFPanner(audioContext, sourceNode) {
 	x2 - axis that passes "between the eyes" and points ahead
 	x3 - axis that points "up"
 
-	Returns point in interaural coordinates: {radius, azimuth [degrees], elevation [degrees]}
+	Returns point in interaural coordinates.
 */
 function cartesianToInteraural(x1, x2, x3) {
 	var r = Math.sqrt(x1 * x1 + x2 * x2 + x3 * x3);
@@ -242,8 +247,12 @@ function deg2rad(deg) {
 function rad2deg(rad) {
 	return rad * 180 / Math.PI;
 }
+// ----------------------------------------------------------------------------
 
-// ---------------------------   DELAUNAY   ---------------------------------------
+
+
+
+// ---------------------------   DELAUNAY   -----------------------------------
 // Delaunay triangulation for the hrir interpolation algorithm.
 // Delaunay.js - code by ironwallaby (https://github.com/ironwallaby/delaunay)
 

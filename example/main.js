@@ -8,6 +8,7 @@ window.onload = function () {
 	}
 
 	// load hrir to the container
+	var hrtfContainer = new HRTFContainer();
 	hrtfContainer.loadHrir("../hrir/kemar_L.bin");
 
 	// create audio source node from the <audio> element
@@ -17,7 +18,7 @@ window.onload = function () {
 	sourceNode.connect(gain);
 
 	// create new hrtf panner, source node gets connected automatically
-	var panner = new HRTFPanner(audioContext, gain);
+	var panner = new HRTFPanner(audioContext, gain, hrtfContainer);
 
 	// connect the panner to the destination node
 	panner.connect(audioContext.destination);
