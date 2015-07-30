@@ -16,7 +16,3 @@ panner.connect(audioContext.destination);
 // call this each time the relative position between the observer and listener changes
 panner.update(azimuth, elevation);
 ```
-
-### ISSUES:
-Currently due to different implementation of the AudioParam scheduling 
-between Chrome and Firefox, this doesn't work properly in Firefox. (audible glitches)
