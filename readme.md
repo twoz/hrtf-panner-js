@@ -1,8 +1,8 @@
-## HRTF Panner
+# HRTF Panner
 
-#####Binaural panner using Head-Related Transfer Functions to convert mono audio source to 3D stereo.
+Binaural panner using Head-Related Transfer Functions to convert mono audio source to 3D stereo.
 
-###USAGE:
+### Usage:
 
 ```javascript
 var hrtfContainer = new HRTFContainer();
